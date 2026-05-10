@@ -15,6 +15,7 @@ from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 import uvicorn
+from config_loader import zta_settings, log_important
 
 logger = logging.getLogger(__name__)
 app = FastAPI(title="FIDO2 IdP", version="1.0.0")
@@ -78,8 +79,8 @@ cred_store = CredentialStore()
 class JWTIssuer:
     """Issues signed JWTs after successful FIDO2 assertion verification."""
 
-    ISSUER  = "https://idp.zerotrust.example.com"
-    SECRET  = b"CHANGE_ME_USE_RSA_OR_EC_IN_PRODUCTION"
+    ISSUER  = zta_settings["idp_url"]
+    SECRET  = zta_settings["jwt_secret"].encode()
     EXPIRY  = 3600  # 1 hour
 
     def issue(self,
@@ -445,10 +446,13 @@ async def authentication_complete(request: Request):
         }
     )
 
-    logger.info("[IdP] JWT issued for user %s | trust=%.2f | risks=%d",
-                cred.user_id, rat_profile.get("rat_trust_score", 0.0),
-                len(adaptive_result["risks"]))
-
+    log_important("IdP-Identity", "JWT Token Issued", {
+        "user_id": cred.user_id,
+        "session_id": adaptive_result.get("session_id", "N/A"),
+        "trust_score": rat_profile.get("rat_trust_score", 0.0),
+        "jwt_token": token
+    })
+    
     return {
         "sessionToken": token,
         "userId": cred.user_id,

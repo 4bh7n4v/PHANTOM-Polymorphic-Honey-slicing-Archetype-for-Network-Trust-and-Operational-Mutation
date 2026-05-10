@@ -1,0 +1,27 @@
+{
+  "description": "Zero Trust Distributed Network Configuration",
+  "version": "1.0.0",
+  
+  "nodes": {
+    "idp_url": "http://localhost:8001",
+    "controller_url": "http://localhost:8002",
+    "gateway_url": "http://localhost:8081",
+    "sdn_mgmt_url": "http://localhost:8084",
+    "ryu_api_url": "http://localhost:8085",
+    "ovp2_url": "http://localhost:8083"
+  },
+
+  "security": {
+    "jwt_secret": "CHANGE_ME_USE_RSA_OR_EC_IN_PRODUCTION",
+    "mtls_enabled": true,
+    "ca_cert_path": "certs/ca.crt",
+    "pep_cert_path": "certs/pep.crt",
+    "pep_key_path": "certs/pep.key"
+  },
+
+  "network": {
+    "resource_ip": "10.0.0.100",
+    "sdn_mode": "fallback",
+    "ovs_bridge": "br-ztna"
+  }
+}

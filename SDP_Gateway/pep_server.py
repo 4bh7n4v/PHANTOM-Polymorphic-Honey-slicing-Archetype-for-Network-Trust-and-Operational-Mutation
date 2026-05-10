@@ -27,6 +27,7 @@ from fastapi import FastAPI, HTTPException, Request, Depends, Header
 from fastapi.responses import JSONResponse
 import httpx
 import uvicorn
+from config_loader import zta_settings, log_important
 
 logger = logging.getLogger(__name__)
 
@@ -36,11 +37,11 @@ app = FastAPI(title="Zero Trust PEP", version="1.0.0")
 #  Configuration                                                       #
 # ------------------------------------------------------------------ #
 
-PDP_URL      = os.environ.get("PDP_URL",      "http://localhost:8002")   # SDP Controller
-OVP2_URL     = os.environ.get("OVP2_URL",     "http://localhost:8083")   # OVP2
-SDN_URL      = os.environ.get("SDN_URL",      "http://localhost:8085")   # Ryu REST API
-IDP_JWKS_URL = os.environ.get("IDP_JWKS_URL", "http://localhost:8001/.well-known/jwks.json")
-RESOURCE_IP  = os.environ.get("RESOURCE_IP",  "10.0.0.100")             # OVP2/resource IP for SDN flows
+PDP_URL      = zta_settings["controller_url"]
+OVP2_URL     = zta_settings["ovp2_url"]
+SDN_URL      = zta_settings["ryu_api_url"]
+IDP_JWKS_URL = f"{zta_settings['idp_url']}/.well-known/jwks.json"
+RESOURCE_IP  = zta_settings["resource_ip"]
 MTLS_CERT    = "certs/pep.crt"
 MTLS_KEY     = "certs/pep.key"
 CA_CERT      = "certs/ca.crt"
@@ -444,6 +445,18 @@ class AuthorizationEngine:
                       else rat_profile.get("ip_address", "")
         resource_ip = RESOURCE_IP   # Configured via RESOURCE_IP env var
 
+        if pdp_outcome == "ALLOW":
+            log_important("PEP-Gateway", "Access Request Authorized", {
+                "session_id": context["subject"].get("jti"),
+                "subject": context["subject"].get("sub"),
+                "trust_score": trust_score,
+                "sdn_action": "ALLOW_FLOW_PUSHED"
+            })
+            asyncio.create_task(
+                sdn_client.allow(session_id, client_ip, resource_ip, trust_score)
+            )
+            return decision
+
         if pdp_outcome == "DENY":
             # Push explicit DROP rule to OVS (fire-and-forget)
             asyncio.create_task(
@@ -457,6 +470,13 @@ class AuthorizationEngine:
             })
 
         if pdp_outcome == "STEP_UP":
+            log_important("PEP-Gateway", "Access STEP-UP Required", {
+                "session_id": context["subject"].get("jti"),
+                "subject": context["subject"].get("sub"),
+                "trust_score": trust_score,
+                "sdn_action": "RATE_LIMIT_PUSHED"
+            })
+            
             # Push rate-limited flow to OVS (fire-and-forget)
             asyncio.create_task(
                 sdn_client.rate_limit(session_id, client_ip, resource_ip, trust_score)

@@ -1,0 +1,8 @@
+{
+  "pdp_url": "http://localhost:8002",
+  "idp_url": "http://localhost:8001",
+  "sdn_url": "http://localhost:8084",
+  "ovp2_url": "http://localhost:8083",
+  "resource_ip": "10.0.0.100",
+  "jwt_secret": "CHANGE_ME_USE_RSA_OR_EC_IN_PRODUCTION"
+}

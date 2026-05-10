@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 ovp1_app = FastAPI(title="OVP1 - Client Overlay Proxy", version="1.0.0")
 
-PEP_URL = "http://localhost:8081"
+from config_loader import zta_settings
+PEP_URL = zta_settings["gateway_url"]
 
 
 class OVP1Proxy:
@@ -226,7 +227,7 @@ async def ovp2_proxy(path: str, request: Request):
 
 import os
 
-RYU_API_URL = os.environ.get("RYU_API_URL", "http://ryu:8085")
+RYU_API_URL = zta_settings["ryu_api_url"]
 
 
 class RyuAPIClient:
@@ -390,7 +391,20 @@ async def sdn_health():
     }
 
 
+@sdn_app.post("/api/v1/flows/rate-limit")
+@sdn_app.post("/ztna/flows/rate-limit")
+async def api_rate_limit(request: Request):
+    body = await request.json()
+    result = await sdn.rate_limit_session(
+        session_id  = body["session_id"],
+        src_ip      = body["src_ip"],
+        dst_ip      = body["dst_ip"],
+        trust_score = body.get("trust_score", 0.5),
+    )
+    return result
+
 @sdn_app.post("/api/v1/flows/allow")
+@sdn_app.post("/ztna/flows/allow")
 async def api_allow_flow(request: Request):
     body = await request.json()
     result = await sdn.allow_session(
@@ -401,8 +415,8 @@ async def api_allow_flow(request: Request):
     )
     return result
 
-
 @sdn_app.post("/api/v1/flows/deny")
+@sdn_app.post("/ztna/flows/deny")
 async def api_deny_flow(request: Request):
     body = await request.json()
     result = await sdn.deny_session(
@@ -412,17 +426,15 @@ async def api_deny_flow(request: Request):
     )
     return result
 
+@sdn_app.get("/api/v1/flows")
+@sdn_app.get("/ztna/flows")
+async def api_list_flows():
+    return await sdn.list_flows()
 
-@sdn_app.post("/api/v1/flows/rate-limit")
-async def api_rate_limit(request: Request):
-    body = await request.json()
-    result = await sdn.rate_limit_session(
-        session_id  = body["session_id"],
-        src_ip      = body["src_ip"],
-        dst_ip      = body["dst_ip"],
-        trust_score = body.get("trust_score", 0.5),
-    )
-    return result
+@sdn_app.delete("/api/v1/sessions/{session_id}")
+@sdn_app.delete("/ztna/flows/{session_id}")
+async def api_teardown(session_id: str):
+    return await sdn.teardown_session(session_id)
 
 
 @sdn_app.post("/api/v1/enforce")

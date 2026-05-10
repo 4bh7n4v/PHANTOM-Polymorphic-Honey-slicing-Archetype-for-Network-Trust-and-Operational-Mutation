@@ -12,6 +12,11 @@ import time
 import signal
 import os
 
+# Force UTF-8 output on Windows (avoids cp1252 UnicodeEncodeError)
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
 # ------------------------------------------------------------------ #
 #  Service Definitions                                                 #
 # ------------------------------------------------------------------ #
@@ -29,7 +34,10 @@ SERVICES = [
     ),
     (
         "SDP Gateway / PEP",
-        ["python", "SDP_Gateway/pep_server.py"],
+        ["python", "-c", 
+         "import os; os.environ['SDN_URL']='http://localhost:8084'; "
+         "import uvicorn; from SDP_Gateway.pep_server import app; "
+         "uvicorn.run(app, host='0.0.0.0', port=8081)"],
         8081,
     ),
     (
@@ -74,7 +82,7 @@ signal.signal(signal.SIGTERM, shutdown)
 
 
 print("\n" + "=" * 55)
-print("  Zero Trust ZTNA — Local Dev Stack")
+print("  Zero Trust ZTNA -- Local Dev Stack")
 print("=" * 55)
 print("  Note: Ryu + OVS require Docker.")
 print("        Run `docker compose up ryu ovs` separately")
@@ -89,10 +97,10 @@ for name, cmd, port in SERVICES:
             stderr=subprocess.STDOUT,
         )
         procs.append((name, p))
-        print(f"  ✓  {name:<35} → :{port}  (pid={p.pid})")
+        print(f"  [OK]  {name:<35} -> :{port}  (pid={p.pid})")
         time.sleep(0.6)
     except Exception as exc:
-        print(f"  ✗  {name:<35} FAILED: {exc}")
+        print(f"  [ERR] {name:<35} FAILED: {exc}")
 
 print(f"\n  All services started. Press Ctrl+C to stop.\n")
 

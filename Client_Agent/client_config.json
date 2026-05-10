@@ -1,0 +1,6 @@
+{
+  "idp_url": "http://localhost:8001",
+  "gateway_url": "http://localhost:8081",
+  "username": "alice@example.com",
+  "user_id": "user-123"
+}

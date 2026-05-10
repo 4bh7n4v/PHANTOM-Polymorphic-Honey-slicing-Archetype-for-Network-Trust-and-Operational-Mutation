@@ -17,6 +17,7 @@ import logging
 import httpx
 
 from multi_rat.rat_detector import MultiRATDetector, RATProfile, RATMonitor
+from config_loader import zta_settings, log_important
 
 logger = logging.getLogger(__name__)
 
@@ -546,8 +547,8 @@ async def main():
 
     client = FIDO2Client(
         rp_id="zerotrust.example.com",
-        idp_base_url="http://localhost:8001",
-        ovp1_base_url="http://localhost:8080",
+        idp_base_url=zta_settings["idp_url"],
+        ovp1_base_url=zta_settings["gateway_url"],
     )
 
     print("=== FIDO2 Zero-Trust Client Demo ===\n")
@@ -562,6 +563,11 @@ async def main():
     print("[2] Authenticating...")
     assertion = await client.authenticate()
     print(f"    Session token obtained (session started)\n")
+    log_important("Client-Agent", "Session Established", {
+        "user_id": "user-001",
+        "jwt_token": assertion.signature, # Using signature as a proxy for the token in the log
+        "rat_type": assertion.rat_profile.get("rat_type")
+    })
 
     # RAT profile
     print("[3] Current RAT Profile:")
